@@ -1,31 +1,37 @@
-import { OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
-import { useEffect, useRef } from "react";
+import ModelViewer from "./ModelViewer";
+
+const Card = ({ title, description }) => {
+    return (
+        <div className="p-4 rounded-lg shadow-lg flex cursor-pointer">
+            <div className="bg-black h-[150px] w-[220px]"></div>
+            <div className="pl-2">
+                <h2 className="text-xl font-bold">{title}</h2>
+                <p>{description}</p>
+            </div>
+        </div>
+    );
+}
 
 export const Experience = () => {
-    const modelRef = useRef();
-
-    const { scene, animations } = useGLTF("/elephant.gltf");
-    const { actions, names } = useAnimations(animations, modelRef);
-
-    useEffect(() => {
-        actions[names[0]].reset().fadeIn(0.5).play();
-        return () => {
-            actions[names[0]].reset().fadeOut(0.5).stop();
-        };
-    }, [actions]);
-
     return (
         <>
-            <OrbitControls />
-
-            <ambientLight intensity={0.5} />
-            <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-
-            <primitive
-                ref={modelRef}
-                scale={[0.3, 0.3, 0.3]}
-                object={scene}
-            />
+            <div className="flex">
+                <div className="flex flex-col w-full lg:w-[70%] h-full">
+                    <ModelViewer
+                        className="h-[70vh]"
+                        modelName="elephant.gltf"
+                    />
+                    <div className="">
+                        <h2 className="text-xl font-bold">Title</h2>
+                        <p>Description</p>
+                    </div>
+                </div>
+                <div className="hidden flex-col lg:flex w-full lg:w-[30%] h-full">
+                    <Card title="Title" description="Description" />
+                    <Card title="Title" description="Description" />
+                    <Card title="Title" description="Description" />
+                </div>
+            </div>
         </>
     );
 };
