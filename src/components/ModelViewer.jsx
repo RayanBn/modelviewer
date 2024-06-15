@@ -1,90 +1,136 @@
-import { Center, ContactShadows, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
-import OptionInterface from "./OptionInterface";
+import { Center, Clone, ContactShadows, OrbitControls, useGLTF } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import ModelContext from "../contexts/ModelContext";
+import { forwardRef, useContext, useImperativeHandle } from "react";
+import { useControls } from "leva";
 
 const Model = ({
-    scene,
-    animations,
-    currentAnimation,
+    file,
+    ...props
 }) => {
-    const modelRef = useRef();
-    const { actions } = useAnimations(animations, modelRef);
-
-    useEffect(() => {
-        if (currentAnimation) {
-            actions[currentAnimation].reset().fadeIn(0.5).play();
-            return () => {
-                actions[currentAnimation].reset().fadeOut(0.5).stop();
-            };
-        }
-    }, [currentAnimation]);
+    const { scene, animations } = useGLTF(file);
 
     return (
         <>
-            <primitive
-                castShadow
-                receiveShadow
-                ref={modelRef}
-                scale={[0.3, 0.3, 0.3]}
-                object={scene}
-                rotation={[0, Math.PI, 0]}
-            />
+            <group
+                {...props}
+            >
+                <Clone
+                    castShadow
+                    receiveShadow
+                    rotation={[0, -Math.PI / 2, 0]}
+                    object={scene}
+                />
+            </group>
         </>
     );
 }
 
-const ModelViewer = ({
-    modelName,
-    ...props
-}) => {
-    const { scene, animations } = useGLTF('/' + modelName);
-    const [currentAnimation, setCurrentAnimation] = useState(null);
+const Capture = forwardRef((props, ref) => {
+    const { gl, scene, camera } = useThree();
+
+    useImperativeHandle(ref, () => ({
+        capture: () => {
+            gl.render(scene, camera);
+            const data = gl.domElement.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = data;
+            a.download = 'image.png';
+            a.click();
+        }
+    }));
+
+    return null;
+});
+
+
+const ModelViewer = forwardRef((props, ref) => {
+    const { lightPosition, lightColor } = useControls(
+        'Light', {
+            lightPosition: {
+                value: [10, 10, 10],
+                step: 0.1
+            },
+            lightColor: {
+                value: '#ffffff'
+            }
+        }
+    );
+    const { backgroundColor } = useControls(
+        'Background', {
+            backgroundColor: {
+                value: '#213e34'
+            }
+        }
+    );
+    const { contactShadows } = useControls(
+        'Shadows', {
+            contactShadows: {
+                value: true
+            }
+        }
+    );
+    const { model: modelFile } = useContext(ModelContext);
 
     return (
         <>
-            <div {...props}>
-                <div className="relative w-full h-full">
-                    <Canvas
-                        className="w-full h-full border-2 border-red rounded-2xl"
-                        shadows
-                        camera={{
-                            position: [3, 1, 3],
-                            fov: 30
-                        }}
-                    >
-                        <color attach="background" args={['#93ada4']} />
-                        <OrbitControls />
+            <Canvas
+                className="w-full h-full border-2 border-red rounded-2xl"
+                shadows
+                camera={{
+                    position: [3, 1, 3],
+                    fov: 30
+                }}
+                {...props}
+            >
+                <color attach="background" args={[backgroundColor]} />
+                <Capture ref={ref} />
+                <OrbitControls />
 
-                        <ambientLight intensity={0.5} />
+                <ambientLight intensity={0.5} />
 
-                        <spotLight
-                            position={[10, 10, 10]}
-                            angle={0.15}
-                            penumbra={1}
+                <spotLight
+                    position={lightPosition}
+                    color={lightColor}
+                    shadow-mapSize={[4096*2, 4096*2]}
+                    shadow-blur={5}
+                    castShadow
+                />
+
+                {
+                    modelFile &&
+                    <Center>
+                        <Model
+                            scale={.2}
+                            file={modelFile}
                         />
-                        <Center>
-                            <Model
-                                scene={scene}
-                                animations={animations}
-                                currentAnimation={currentAnimation}
-                            />
+
+                        {
+                            contactShadows &&
                             <ContactShadows
                                 width={1.5}
                                 height={1.5}
                                 far={100}
                             />
-                        </Center>
-                    </Canvas>
-                    <OptionInterface
-                        className="absolute bottom-2 right-2"
-                        options={animations.map((animation) => animation.name)}
-                        onSelectOption={setCurrentAnimation}
-                    />
-                </div>
-            </div>
+                        
+                        }
+                        <mesh
+                            castShadow
+                            receiveShadow
+                            rotation={[-Math.PI / 2, 0, 0]}
+                            position={[0, -0.01, 0]}
+                        >
+                            <planeGeometry args={[1000, 1000]} />
+                            <meshStandardMaterial
+                                color={backgroundColor}
+                            />
+                        </mesh>
+                    </Center>
+                }
+
+            </Canvas>
         </>
     );
-};
+});
 
 export default ModelViewer;
